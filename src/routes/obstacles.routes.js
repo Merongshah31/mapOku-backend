@@ -12,7 +12,6 @@ const {
   voteValidators,
 } = require('../validators/obstacle.validator');
 const { validate } = require('../middleware/validate');
-const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -33,7 +32,7 @@ router.get(
 
 /**
  * POST /api/v1/obstacles
- * Report a new obstacle. Requires authentication.
+ * Report a new obstacle. Authentication is temporarily disabled.
  * Accepts multipart/form-data for optional image upload.
  *
  * Body fields:
@@ -45,7 +44,6 @@ router.get(
  */
 router.post(
   '/',
-  authenticate,
   upload.single('image'), // Multer handles multipart — must be before validators
   createObstacleValidators,
   validate,
@@ -54,11 +52,10 @@ router.post(
 
 /**
  * PUT /api/v1/obstacles/:id/upvote
- * Confirm obstacle is still present ("Still there?"). Requires auth.
+ * Confirm obstacle is still present ("Still there?"). Authentication is temporarily disabled.
  */
 router.put(
   '/:id/upvote',
-  authenticate,
   voteValidators,
   validate,
   upvoteObstacle
@@ -66,12 +63,11 @@ router.put(
 
 /**
  * PUT /api/v1/obstacles/:id/downvote
- * Report obstacle as cleared ("It's gone!"). Requires auth.
+ * Report obstacle as cleared ("It's gone!"). Authentication is temporarily disabled.
  * Auto-archives if downvote threshold is reached.
  */
 router.put(
   '/:id/downvote',
-  authenticate,
   voteValidators,
   validate,
   downvoteObstacle

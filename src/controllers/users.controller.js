@@ -95,6 +95,13 @@ const login = async (req, res, next) => {
  */
 const getMe = async (req, res, next) => {
   try {
+    if (!req.user?.id) {
+      return res.status(503).json({
+        error: 'Temporarily Unavailable',
+        message: 'Authentication is temporarily disabled, so a user profile cannot be selected.',
+      });
+    }
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, username, avatar_url, reputation_score, created_at')

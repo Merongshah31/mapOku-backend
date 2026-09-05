@@ -3,10 +3,12 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
 
 const routesRouter   = require('./routes/routes.routes');
 const obstaclesRouter = require('./routes/obstacles.routes');
 const usersRouter    = require('./routes/users.routes');
+const swaggerSpec = require('./config/swagger');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
@@ -28,6 +30,16 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Root endpoint for a quick browser smoke test
+app.get('/', (req, res) => {
+  res.status(200).json({
+    service: 'mapoku-backend',
+    status: 'ok',
+    documentation: '/api-docs',
+    health: '/health',
+  });
+});
+
 // ──────────────────────────────────────────────────
 // Health Check
 // ──────────────────────────────────────────────────
@@ -39,6 +51,11 @@ app.get('/health', (req, res) => {
     version: process.env.npm_package_version || '1.0.0',
   });
 });
+
+// Interactive OpenAPI documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'Mapoku API Documentation',
+}));
 
 // ──────────────────────────────────────────────────
 // API Routes

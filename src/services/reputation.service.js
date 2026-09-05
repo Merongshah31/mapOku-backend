@@ -21,6 +21,12 @@ class ReputationService {
    * @returns {Object} Updated obstacle record with new vote counts
    */
   async updateObstacleStatus(obstacleId, userId, voteType) {
+    if (!userId) {
+      const err = new Error('A user identity is required to vote on an obstacle.');
+      err.status = 503;
+      throw err;
+    }
+
     // 1. Verify obstacle exists and is active
     const { data: obstacle, error: fetchError } = await supabase
       .from('obstacles')

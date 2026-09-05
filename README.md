@@ -39,6 +39,11 @@ npm run dev
 # Server starts at http://localhost:3000
 ```
 
+### 5. Interactive API Documentation
+Open [http://localhost:3000/api-docs](http://localhost:3000/api-docs) in a browser to explore and test the OpenAPI 3.0 API.
+
+For a deployed environment, set `API_BASE_URL` to the public API URL so Swagger UI sends requests to the correct server.
+
 ---
 
 ## 📡 API Reference
@@ -51,13 +56,9 @@ Base URL (prod): `https://your-app.vercel.app`
 
 ---
 
-### 🔐 Authentication
+### 🔓 Temporary Authentication Mode
 
-All authenticated endpoints require:
-```
-Authorization: Bearer <access_token>
-```
-Get your token from `POST /api/v1/users/login`.
+Bearer JWT checks are temporarily disabled for obstacle reporting and voting. The register/login endpoints remain available, while `/api/v1/users/me` is unavailable until authentication is enabled again.
 
 ---
 
@@ -88,7 +89,7 @@ Returns `access_token` — use this in all subsequent authenticated requests.
 #### Get My Profile
 ```bash
 curl http://localhost:3000/api/v1/users/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  # Temporarily unavailable while authentication is disabled
 ```
 
 ---
@@ -99,6 +100,9 @@ curl http://localhost:3000/api/v1/users/me \
 ```bash
 curl "http://localhost:3000/api/v1/routes/accessible?startLat=3.139&startLng=101.686&endLat=3.147&endLng=101.695&accessibilityNeeds=wheelchair,elderly"
 ```
+
+#https://ticket-micro-fair-likelihood.trycloudflare.com/api/v1/routes/accessible?startLat=3.139&startLng=101.686&endLat=3.147&endLng=101.695&accessibilityNeeds=wheelchair,elderly"
+
 
 **Query Parameters:**
 
@@ -124,7 +128,6 @@ curl "http://localhost:3000/api/v1/obstacles?minLat=3.13&minLng=101.68&maxLat=3.
 #### Report an Obstacle (with image)
 ```bash
 curl -X POST http://localhost:3000/api/v1/obstacles \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -F "latitude=3.141" \
   -F "longitude=101.688" \
   -F "type=broken_pavement" \
@@ -138,13 +141,13 @@ curl -X POST http://localhost:3000/api/v1/obstacles \
 #### Confirm Obstacle ("Still there?")
 ```bash
 curl -X PUT http://localhost:3000/api/v1/obstacles/OBSTACLE_UUID/upvote \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  # Voting still requires a user identity in the database
 ```
 
 #### Report Obstacle as Cleared ("It's gone!")
 ```bash
 curl -X PUT http://localhost:3000/api/v1/obstacles/OBSTACLE_UUID/downvote \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  # Voting still requires a user identity in the database
 ```
 > Auto-archives obstacle after **3 downvotes**.
 

@@ -1,6 +1,5 @@
 const express = require('express');
 const { register, login, getMe } = require('../controllers/users.controller');
-const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -23,9 +22,9 @@ router.post('/login', login);
 
 /**
  * GET /api/v1/users/me
- * Returns the authenticated user's public profile.
- * Requires: Authorization: Bearer <access_token>
+ * Returns a user's public profile. Authentication is temporarily disabled,
+ * so this endpoint currently requires a user identifier to be reintroduced.
  */
-router.get('/me', authenticate, getMe);
+router.get('/me', getMe);
 
 module.exports = router;
