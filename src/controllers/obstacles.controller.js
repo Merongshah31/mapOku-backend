@@ -80,7 +80,7 @@ const upvoteObstacle = async (req, res, next) => {
   try {
     const updated = await reputationService.updateObstacleStatus(
       req.params.id,
-      req.user.id,
+      req.user?.id,
       'upvote'
     );
 
@@ -103,7 +103,7 @@ const downvoteObstacle = async (req, res, next) => {
   try {
     const updated = await reputationService.updateObstacleStatus(
       req.params.id,
-      req.user.id,
+      req.user?.id,
       'downvote'
     );
 

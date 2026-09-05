@@ -51,6 +51,20 @@ Semakan Bearer JWT sedang dinyahaktifkan sementara untuk pelaporan halangan. End
 
 ---
 
+## 🌐 Supabase Realtime untuk Peta
+
+Vercel hanya menjalankan backend sebagai serverless HTTP function. Ia tidak menyediakan WebSocket atau Socket.IO yang persistent. Untuk kemas kini marker secara langsung, frontend perlu:
+
+1. Memuatkan obstacle awal melalui `GET /api/v1/obstacles` berdasarkan bounding box.
+2. Subscribe kepada table `public.obstacle_realtime_events` menggunakan `SUPABASE_ANON_KEY`.
+3. Menambah atau mengemas kini marker apabila `status` ialah `active`.
+4. Membuang marker apabila `status` bukan `active` atau `event_type` ialah `delete`.
+5. Membuat semula request bounding box selepas reconnect atau channel error kerana Realtime tidak replay event yang terlepas.
+
+Projection ini hanya mengandungi data map yang selamat untuk dibaca public. `SUPABASE_SERVICE_ROLE_KEY` mesti kekal di backend/Vercel dan tidak boleh dihantar ke frontend.
+
+---
+
 ## 📋 Senarai Semua Endpoint
 
 | Kategori | Method | Endpoint Path | Auth? | Fungsi Ringkas |

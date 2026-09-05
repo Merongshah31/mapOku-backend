@@ -28,11 +28,13 @@ cp .env.example .env
    - `Project URL` → `SUPABASE_URL`
    - `service_role` secret → `SUPABASE_SERVICE_ROLE_KEY`
    - `anon` public key → `SUPABASE_ANON_KEY`
-3. Go to **SQL Editor** and run both migration files:
+3. Go to **SQL Editor** and run the migration files in order:
    - `supabase/migrations/001_initial_schema.sql`
    - `supabase/migrations/002_rpc_functions.sql`
+  - `supabase/migrations/003_reputation_rpc.sql`
+  - `supabase/migrations/004_obstacle_realtime_events.sql`
 4. Go to **Storage** and create a bucket named `obstacle-images` (set to **Public**)
-5. Go to **Realtime** and enable the `obstacles` table
+5. Go to **Realtime** and enable the `obstacle_realtime_events` table
 
 ### 4. Run Locally
 ```bash
@@ -245,8 +247,10 @@ mapoku-backend/
 │       └── route.validator.js
 ├── supabase/
 │   └── migrations/
-│       ├── 001_initial_schema.sql  # Tables, RLS, triggers
-│       └── 002_rpc_functions.sql   # PostGIS stored procedures
+│       ├── 001_initial_schema.sql          # Tables, RLS, triggers
+│       ├── 002_rpc_functions.sql           # PostGIS stored procedures
+│       ├── 003_reputation_rpc.sql          # Reputation functions
+│       └── 004_obstacle_realtime_events.sql # Public Realtime projection
 ├── .env.example
 ├── vercel.json
 └── package.json
@@ -256,38 +260,41 @@ mapoku-backend/
 
 ## 🌐 Supabase Realtime (Frontend Setup)
 
-The backend writes to Supabase — Realtime broadcasts changes automatically.
-In your Leaflet.js frontend, subscribe like this:
+Vercel runs the backend as serverless HTTP functions, so it does not host a persistent WebSocket or Socket.IO connection. The backend writes obstacle changes to Supabase, and the frontend subscribes directly to the public-safe `obstacle_realtime_events` projection.
+
+Load the initial map state from the bounding-box endpoint, then subscribe like this:
 
 ```javascript
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Subscribe to new obstacles in real time
+// Initial state: GET /api/v1/obstacles for the current map viewport.
+// Realtime: subscribe to the public-safe projection, not the private obstacles table.
 const channel = supabase
-  .channel('obstacles-live')
+  .channel('obstacle-events-live')
   .on(
     'postgres_changes',
-    { event: 'INSERT', schema: 'public', table: 'obstacles' },
+    { event: '*', schema: 'public', table: 'obstacle_realtime_events' },
     (payload) => {
-      const obstacle = payload.new;
-      // Add new obstacle pin to your Leaflet map
-      addObstacleMarker(obstacle);
-    }
-  )
-  .on(
-    'postgres_changes',
-    { event: 'UPDATE', schema: 'public', table: 'obstacles' },
-    (payload) => {
-      const obstacle = payload.new;
-      if (obstacle.status === 'archived') {
-        removeObstacleMarker(obstacle.id); // Remove cleared obstacle
+      const event = payload.new;
+      if (event.status !== 'active' || event.event_type === 'delete') {
+        removeObstacleMarker(event.obstacle_id);
+      } else {
+        upsertObstacleMarker({
+          id: event.obstacle_id,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          type: event.type,
+          affects: event.affects,
+        });
       }
     }
   )
   .subscribe();
 ```
+
+Only `SUPABASE_URL` and `SUPABASE_ANON_KEY` belong in the frontend. Never expose `SUPABASE_SERVICE_ROLE_KEY`. After a Realtime reconnect, channel error, or timeout, call the bounding-box endpoint again because Realtime does not replay missed events.
 
 ---
 
@@ -305,6 +312,10 @@ Set environment variables in Vercel dashboard:
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_STORAGE_BUCKET`
 - `DOWNVOTE_ARCHIVE_THRESHOLD`
+- `ORS_BASE_URL`
+- `ORS_API_KEY`
+- `OPENWEATHER_BASE_URL`
+- `OPENWEATHER_API_KEY`
 - `NODE_ENV=production`
 
 ---

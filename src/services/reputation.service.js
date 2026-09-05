@@ -30,7 +30,7 @@ class ReputationService {
     // 1. Verify obstacle exists and is active
     const { data: obstacle, error: fetchError } = await supabase
       .from('obstacles')
-      .select('id, status, upvotes, downvotes')
+      .select('id, user_id, status, upvotes, downvotes')
       .eq('id', obstacleId)
       .single();
 
