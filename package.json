@@ -9,7 +9,13 @@
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch"
   },
-  "keywords": ["accessibility", "routing", "openrouteservice", "supabase", "maps"],
+  "keywords": [
+    "accessibility",
+    "routing",
+    "openrouteservice",
+    "supabase",
+    "maps"
+  ],
   "author": "Mapoku Team",
   "license": "MIT",
   "dependencies": {
@@ -23,6 +29,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
     "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-dist": "^5.32.15",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^10.0.0"
   },
@@ -33,6 +40,8 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/__tests__/**/*.test.js"]
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
   }
 }

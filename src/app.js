@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
+const swaggerUiDist = require('swagger-ui-dist');
 
 const routesRouter   = require('./routes/routes.routes');
 const obstaclesRouter = require('./routes/obstacles.routes');
@@ -55,6 +56,7 @@ app.get('/health', (req, res) => {
 });
 
 // Interactive OpenAPI documentation
+app.use('/api-docs', express.static(swaggerUiDist.getAbsoluteFSPath(), { index: false }));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'Mapoku API Documentation',
 }));
