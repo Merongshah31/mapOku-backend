@@ -9,6 +9,7 @@ const routesRouter   = require('./routes/routes.routes');
 const obstaclesRouter = require('./routes/obstacles.routes');
 const usersRouter    = require('./routes/users.routes');
 const swaggerSpec = require('./config/swagger');
+const reportsRouter  = require('./routes/reports.routes');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.use('/api/v1/routes',    routesRouter);
 app.use('/api/v1/obstacles', obstaclesRouter);
 app.use('/api/v1/users',     usersRouter);
+app.use('/api/v1/reports',   reportsRouter);
 
 // ──────────────────────────────────────────────────
 // Error Handling (must be last)

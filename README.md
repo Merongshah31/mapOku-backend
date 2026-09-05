@@ -92,6 +92,16 @@ curl http://localhost:3000/api/v1/users/me \
   # Temporarily unavailable while authentication is disabled
 ```
 
+### 📊 Reporting Endpoints
+
+#### Get My Obstacle Reports
+```bash
+curl "http://localhost:3000/api/v1/reports/me?page=1&limit=20&status=active" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+Returns the authenticated user's obstacle reports, grouped status totals, and pagination metadata. `status` is optional and can be `active`, `archived`, or `under_review`.
+
 ---
 
 ### 🛣️ Routing Endpoints
