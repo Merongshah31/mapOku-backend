@@ -5,6 +5,7 @@
       "src": "api/index.js",
       "use": "@vercel/node",
       "config": {
+        "maxDuration": 30,
         "includeFiles": [
           "node_modules/swagger-ui-dist/swagger-ui.css",
           "node_modules/swagger-ui-dist/swagger-ui-bundle.js",

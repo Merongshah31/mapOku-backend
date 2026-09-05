@@ -5,3 +5,5 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+credentials
+mapoku-192c5c15a45d.json

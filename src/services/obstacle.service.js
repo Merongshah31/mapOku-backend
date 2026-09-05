@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const storageService = require('./storage.service');
+const { validateObstacleImage } = require('./image-validation.service');
 
 /**
  * ObstacleService
@@ -13,19 +14,20 @@ class ObstacleService {
    * Supabase Realtime broadcasts the INSERT automatically.
    *
    * @param {Object} obstacleData - { latitude, longitude, type, description, affects, userId }
-   * @param {Object|null} imageFile - Multer file object (buffer, mimetype, originalname)
+  * @param {Object} imageFile - Multer file object (buffer, mimetype, originalname)
    * @returns {Object} The created obstacle record
    */
   async createAndNotify(obstacleData, imageFile = null) {
     const { latitude, longitude, type, description, affects, userId } = obstacleData;
 
-    // 1. Upload image if provided
+    // Validate before Storage upload to avoid orphaned files from rejected reports.
+    const aiValidation = await validateObstacleImage(imageFile);
+
+    // 1. Upload the validated image
     let imageUrl = null;
-    if (imageFile) {
-      const ext = imageFile.originalname.split('.').pop();
-      const path = `${userId || 'anonymous'}/${Date.now()}.${ext}`;
-      imageUrl = await storageService.uploadImage(imageFile.buffer, path, imageFile.mimetype);
-    }
+    const ext = imageFile.originalname.split('.').pop().toLowerCase();
+    const path = `${userId || 'anonymous'}/${Date.now()}.${ext}`;
+    imageUrl = await storageService.uploadImage(imageFile.buffer, path, imageFile.mimetype);
 
     // 2. Insert obstacle into DB
     // location is a PostGIS GEOGRAPHY point — format: POINT(lng lat)
@@ -40,7 +42,13 @@ class ObstacleService {
         image_url: imageUrl,
         user_id: userId || null,
         affects: affects || [],
-        status: 'active',
+        status: 'under_review',
+        ai_validation_status: 'pending',
+        ai_confidence: aiValidation.confidence,
+        ai_reason: aiValidation.reason,
+        ai_detected_type: aiValidation.detected_type,
+        ai_validated_at: new Date().toISOString(),
+        ai_model: aiValidation.model,
       })
       .select()
       .single();

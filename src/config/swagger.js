@@ -21,6 +21,8 @@ const options = {
       { name: 'Obstacles', description: 'Obstacle reports and community verification' },
       { name: 'Reports', description: 'Authenticated obstacle reports and summaries' },
       { name: 'Weather', description: 'Current weather conditions for map locations' },
+      { name: 'Voice Navigation', description: 'Google Cloud Speech-to-Text voice commands for client-side navigation' },
+      { name: 'AI & Moderation', description: 'Vertex AI image validation and protected moderation' },
     ],
     components: {
       securitySchemes: {
@@ -155,6 +157,73 @@ const options = {
           },
         },
       },
+      '/api/v1/ai/validate-image': {
+        post: {
+          tags: ['AI & Moderation'],
+          summary: 'Validate an obstacle image',
+          description: 'Frontend-safe endpoint. The Vertex AI key remains on the backend and is never returned to the client.',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: { type: 'object', required: ['image'], properties: { image: { type: 'string', format: 'binary' } } },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'AI verdict returned' },
+            400: { description: 'Image is missing' },
+            422: { description: 'Unsupported image type' },
+            502: { description: 'Vertex AI request failed' },
+            503: { description: 'Vertex AI is not configured' },
+          },
+        },
+      },
+      '/api/v1/voice/transcribe': {
+        post: {
+          tags: ['Voice Navigation'],
+          summary: 'Transcribe a voice navigation command',
+          description: 'Uploads short audio to Google Cloud Speech-to-Text and returns the transcript plus a navigation intent for the client to execute. Browser MediaRecorder audio/webm uses WEBM_OPUS by default.',
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['audio'],
+                  properties: {
+                    audio: { type: 'string', format: 'binary', description: 'Audio command, maximum 10 MB.' },
+                    encoding: { type: 'string', enum: ['WEBM_OPUS', 'OGG_OPUS', 'LINEAR16', 'FLAC', 'MP3'], default: 'WEBM_OPUS' },
+                    languageCode: { type: 'string', default: 'ms-MY', example: 'ms-MY' },
+                    sampleRateHertz: { type: 'integer', minimum: 8000, maximum: 48000, example: 48000 },
+                    model: { type: 'string', default: 'latest_short' },
+                    alternativeLanguageCodes: { type: 'string', example: 'en-US' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'Audio transcribed and command classified',
+              content: { 'application/json': { example: { success: true, data: { transcript: 'Bawa saya ke Hospital Kuala Lumpur', confidence: 0.94, navigationCommand: { type: 'NAVIGATE_TO_DESTINATION', destination: 'hospital kuala lumpur' } } } } },
+            },
+            400: { description: 'Missing audio, invalid audio type, encoding, or sample rate' },
+            502: { description: 'Google Speech-to-Text rejected the audio or credentials' },
+            503: { description: 'Google Speech-to-Text is not configured for the project' },
+          },
+        },
+      },
+      '/api/v1/moderation/obstacles/{id}': {
+        patch: {
+          tags: ['AI & Moderation'],
+          summary: 'Approve or reject an obstacle',
+          description: 'Protected moderation endpoint. Requires the x-moderator-key header and only changes under_review obstacles.',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }, { name: 'x-moderator-key', in: 'header', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['decision'], properties: { decision: { type: 'string', enum: ['approve', 'reject'] }, note: { type: 'string', maxLength: 500 } } } } } },
+          responses: { 200: { description: 'Moderation applied' }, 400: { description: 'Invalid decision or obstacle ID' }, 401: { description: 'Invalid moderator key' }, 404: { description: 'Under-review obstacle not found' }, 503: { description: 'Moderation is not configured' } },
+        },
+      },
       '/api/v1/obstacles': {
         get: {
           tags: ['Obstacles'], summary: 'List obstacles in a map viewport', description: 'Returns active obstacles inside the requested latitude/longitude bounding box.',
@@ -168,8 +237,8 @@ const options = {
         },
         post: {
           tags: ['Obstacles'], summary: 'Report an obstacle', description: 'Creates an obstacle report without requiring Bearer JWT authentication while temporary access is enabled.',
-          requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['latitude', 'longitude', 'type'], properties: { latitude: { type: 'number', example: 3.141 }, longitude: { type: 'number', example: 101.688 }, type: { $ref: '#/components/schemas/ObstacleType' }, description: { type: 'string', maxLength: 500, example: 'Large crack on the sidewalk.' }, affects: { type: 'string', example: '["wheelchair","stroller"]' }, image: { type: 'string', format: 'binary' } } }, encoding: { affects: { contentType: 'application/json' } } } } },
-          responses: { 201: { description: 'Obstacle created', content: { 'application/json': { example: { success: true, message: 'Obstacle reported successfully. Thank you for contributing to Mapoku!', data: { id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', latitude: 3.141, longitude: 101.688, type: 'broken_pavement', status: 'active' } } } } }, 400: { description: 'Invalid obstacle data' }, 500: { description: 'Database or upload failure' } },
+          requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['latitude', 'longitude', 'type', 'image'], properties: { latitude: { type: 'number', example: 3.141 }, longitude: { type: 'number', example: 101.688 }, type: { $ref: '#/components/schemas/ObstacleType' }, description: { type: 'string', maxLength: 500, example: 'Large crack on the sidewalk.' }, affects: { type: 'string', example: '["wheelchair","stroller"]' }, image: { type: 'string', format: 'binary', description: 'Required image. It is validated by Vertex AI before storage.' } } }, encoding: { affects: { contentType: 'application/json' } } } } },
+          responses: { 201: { description: 'Obstacle created under review', content: { 'application/json': { example: { success: true, message: 'Obstacle reported successfully. Thank you for contributing to Mapoku!', data: { id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', latitude: 3.141, longitude: 101.688, type: 'broken_pavement', status: 'under_review', ai_validation_status: 'pending' } } } } }, 400: { description: 'Missing image or invalid obstacle data' }, 422: { description: 'Unsupported or invalid image' }, 502: { description: 'Vertex AI or storage provider failure' }, 503: { description: 'Vertex AI validation is not configured' } },
         },
       },
       '/api/v1/obstacles/{id}/upvote': {

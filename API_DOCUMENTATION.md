@@ -71,6 +71,8 @@ Projection ini hanya mengandungi data map yang selamat untuk dibaca public. `SUP
 |---|---|---|:---:|---|
 | **Health** | `GET` | `/health` | ❌ | Periksa status hidup server |
 | **Weather** | `GET` | `/api/v1/weather/current` | ❌ | Dapatkan cuaca semasa berdasarkan koordinat |
+| **AI** | `POST` | `/api/v1/ai/validate-image` | ❌ | Semak imej obstacle melalui backend Vertex AI |
+| **Moderation** | `PATCH` | `/api/v1/moderation/obstacles/:id` | 🔐 | Approve atau reject laporan under review |
 | **Reports** | `GET` | `/api/v1/reports/me` | ✅ | Senarai laporan halangan milik pengguna yang sedang log masuk |
 | **Dokumentasi** | `GET` | `/api-docs` | ❌ | Swagger UI interaktif OpenAPI 3.0 |
 | **Auth/User** | `POST` | `/api/v1/users/register` | ❌ | Daftar akaun pengguna baru |
@@ -366,7 +368,7 @@ Menarik senarai halangan aktif di dalam kawasan skrin peta semasa (*Bounding Box
 ---
 
 ### `POST /api/v1/obstacles`
-Melaporkan halangan fizikal baru berserta muat naik gambar pilihan.
+Melaporkan halangan fizikal baru berserta muat naik gambar wajib untuk validasi Vertex AI.
 
 - **Headers:** `Content-Type: multipart/form-data`
 
@@ -378,7 +380,9 @@ Melaporkan halangan fizikal baru berserta muat naik gambar pilihan.
 | `type` | String | **Ya** | Jenis halangan (rujuk senarai bawah) |
 | `description` | String | Tidak | Maklumat terperinci keadaan halangan |
 | `affects` | String / JSON | Tidak | Cth: `["wheelchair","elderly"]` |
-| `image` | File | Tidak | Fail gambar (JPG/PNG/WebP, maks 5MB) |
+| `image` | File | **Ya** | Fail gambar (JPG/PNG/WebP/GIF, maks 5MB) |
+
+Gambar dianalisis secara synchronous oleh Vertex AI sebelum disimpan. Laporan yang berjaya diproses akan bermula dengan status `under_review` dan tidak dipaparkan pada map sehingga diluluskan.
 
 #### Senarai `type` Halangan yang Sah:
 - `broken_pavement` (Laluan rosak/pecah)
@@ -404,7 +408,10 @@ Melaporkan halangan fizikal baru berserta muat naik gambar pilihan.
       "type": "construction",
       "description": "Laluan pejalan kaki sempit kerana pembinaan.",
       "image_url": "https://jssylebzpkbtijnkbkbx.supabase.co/storage/v1/object/public/obstacle-images/...",
-      "status": "active",
+      "status": "under_review",
+      "ai_validation_status": "pending",
+      "ai_confidence": 0.91,
+      "ai_detected_type": "construction",
       "upvotes": 0,
       "downvotes": 0,
       "affects": ["wheelchair", "elderly"]

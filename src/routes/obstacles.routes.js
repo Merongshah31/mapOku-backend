@@ -33,14 +33,14 @@ router.get(
 /**
  * POST /api/v1/obstacles
  * Report a new obstacle. Authentication is temporarily disabled.
- * Accepts multipart/form-data for optional image upload.
+ * Accepts multipart/form-data with a required image for AI validation.
  *
  * Body fields:
  *   latitude, longitude (required)
  *   type                (required, see obstacle_type enum)
  *   description         (optional, max 500 chars)
  *   affects             (optional JSON array of accessibility needs)
- *   image               (optional image file, max 5MB)
+ *   image               (required image file, max 5MB)
  */
 router.post(
   '/',

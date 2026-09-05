@@ -39,12 +39,18 @@ const getObstacles = async (req, res, next) => {
 
 /**
  * POST /api/v1/obstacles
- * Creates a new obstacle report. Requires authentication.
- * Accepts optional image upload (multipart/form-data).
+ * Creates a new obstacle report after synchronous AI image validation.
+ * Accepts a required image upload (multipart/form-data).
  */
 const createObstacle = async (req, res, next) => {
   try {
     const { latitude, longitude, type, description, affects } = req.body;
+
+    if (!req.file) {
+      const error = new Error('An obstacle image is required.');
+      error.status = 400;
+      throw error;
+    }
 
     const obstacleData = {
       latitude,
@@ -59,7 +65,7 @@ const createObstacle = async (req, res, next) => {
 
     const obstacle = await obstacleService.createAndNotify(
       obstacleData,
-      req.file || null
+      req.file
     );
 
     res.status(201).json({

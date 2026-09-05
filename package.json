@@ -19,6 +19,7 @@
   "author": "Mapoku Team",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/speech": "^8.0.1",
     "@supabase/supabase-js": "^2.43.4",
     "axios": "^1.7.2",
     "cors": "^2.8.5",

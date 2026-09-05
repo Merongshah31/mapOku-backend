@@ -33,6 +33,7 @@ cp .env.example .env
    - `supabase/migrations/002_rpc_functions.sql`
   - `supabase/migrations/003_reputation_rpc.sql`
   - `supabase/migrations/004_obstacle_realtime_events.sql`
+  - `supabase/migrations/005_ai_validation.sql`
 4. Go to **Storage** and create a bucket named `obstacle-images` (set to **Public**)
 5. Go to **Realtime** and enable the `obstacle_realtime_events` table
 
@@ -64,6 +65,48 @@ curl "https://your-project.vercel.app/api/v1/routes/accessible?startLat=3.139&st
 ```
 
 Vercel runs the backend as serverless functions. Supabase Realtime remains responsible for frontend realtime updates; no persistent Node process or local `.osm.pbf`/Docker routing engine is required for this deployment.
+
+### Vertex AI Image Validation
+
+The backend validates obstacle images before storing them. Configure these values in Vercel Environment Variables or local `.env`:
+
+```env
+VERTEX_AI_API_KEY=your-google-cloud-api-key
+GOOGLE_CLOUD_PROJECT=your-google-cloud-project-id
+VERTEX_AI_BASE_URL=https://aiplatform.googleapis.com
+VERTEX_AI_LOCATION=global
+VERTEX_AI_MODEL=gemini-2.0-flash-001
+VERTEX_AI_TIMEOUT_MS=15000
+MODERATOR_API_KEY=your-private-moderator-key
+```
+
+The key must come from Google Cloud **APIs & Services → Credentials** and must have access to the selected Vertex AI model. Keep it server-side; the frontend must never receive `VERTEX_AI_API_KEY`.
+
+The frontend can request a preview verdict through the backend:
+
+```javascript
+const formData = new FormData();
+formData.append('image', imageFile);
+
+const response = await fetch(`${API_URL}/api/v1/ai/validate-image`, {
+  method: 'POST',
+  body: formData,
+});
+const result = await response.json();
+```
+
+The endpoint returns `data.is_obstacle`, `data.is_spam`, `data.confidence`, `data.detected_type`, and `data.reason`. The final obstacle upload validates again on the backend. New reports start as `under_review` and are not visible on the map until moderation approves them.
+
+Moderators approve or reject a report with the private key:
+
+```bash
+curl -X PATCH "https://your-project.vercel.app/api/v1/moderation/obstacles/OBSTACLE_UUID" \
+  -H "Content-Type: application/json" \
+  -H "x-moderator-key: YOUR_PRIVATE_MODERATOR_KEY" \
+  -d '{"decision":"approve","note":"Image confirms the reported obstacle."}'
+```
+
+Use `decision: "reject"` to archive a report. Do not expose this endpoint or `MODERATOR_API_KEY` to normal frontend users. For production, replace the shared moderator key with authenticated admin roles.
 
 ---
 
@@ -316,7 +359,14 @@ Set environment variables in Vercel dashboard:
 - `ORS_API_KEY`
 - `OPENWEATHER_BASE_URL`
 - `OPENWEATHER_API_KEY`
+- `VERTEX_AI_API_KEY`
+- `GOOGLE_CLOUD_PROJECT`
+- `VERTEX_AI_BASE_URL`
+- `VERTEX_AI_LOCATION`
+- `VERTEX_AI_MODEL`
 - `NODE_ENV=production`
+
+Obstacle uploads require an image while AI validation is enabled. Vertex AI is called synchronously before the image is uploaded to Storage. New reports start as `under_review`, so they do not appear on the map or affect routing until a moderation workflow approves them. Set the Vercel function timeout to at least 30 seconds for this flow and never expose `VERTEX_AI_API_KEY` to the frontend.
 
 ---
 
