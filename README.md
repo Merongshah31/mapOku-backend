@@ -45,6 +45,24 @@ Open [http://localhost:3000/api-docs](http://localhost:3000/api-docs) in a brows
 
 For a deployed environment, set `API_BASE_URL` to the public API URL so Swagger UI sends requests to the correct server.
 
+### Deploy to Vercel
+
+The project uses [api/index.js](api/index.js) as the Vercel serverless entrypoint. Vercel routes all requests to the Express app, including `/health`, `/api-docs`, and `/api/v1/*`.
+
+1. Push the repository to GitHub and import it in Vercel, or run `vercel` from the project directory.
+2. In **Project Settings → Environment Variables**, add the values from `.env.example` for the `Production`, `Preview`, and `Development` environments as needed.
+3. Required server-side variables are `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ORS_API_KEY`, and `OPENWEATHER_API_KEY`. Never commit `.env` or paste these secrets into `vercel.json`.
+4. Set `API_BASE_URL` to the deployed URL, for example `https://your-project.vercel.app`.
+5. After deployment, verify:
+
+```bash
+curl https://your-project.vercel.app/health
+curl "https://your-project.vercel.app/api/v1/weather/current?lat=3.139&lon=101.686"
+curl "https://your-project.vercel.app/api/v1/routes/accessible?startLat=3.139&startLng=101.686&endLat=3.147&endLng=101.695&accessibilityNeeds=wheelchair"
+```
+
+Vercel runs the backend as serverless functions. Supabase Realtime remains responsible for frontend realtime updates; no persistent Node process or local `.osm.pbf`/Docker routing engine is required for this deployment.
+
 ---
 
 ## 📡 API Reference
