@@ -19,8 +19,17 @@ const options = {
       { name: 'Users', description: 'Registration, authentication, and profiles' },
       { name: 'Routes', description: 'Accessible pedestrian routing' },
       { name: 'Obstacles', description: 'Obstacle reports and community verification' },
+      { name: 'Reports', description: 'Authenticated obstacle reports and summaries' },
+      { name: 'Weather', description: 'Current weather conditions for map locations' },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
       schemas: {
         Error: {
           type: 'object',
@@ -102,7 +111,7 @@ const options = {
       },
       '/api/v1/routes/accessible': {
         get: {
-          tags: ['Routes'], summary: 'Calculate an accessible route', description: 'Calculates a pedestrian route through OSRM while detouring around active relevant obstacles.',
+          tags: ['Routes'], summary: 'Calculate an accessible route', description: 'Calculates a pedestrian route through OpenRouteService while avoiding active relevant obstacles with small GeoJSON avoidance zones.',
           parameters: [
             { name: 'startLat', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 }, example: 3.139 },
             { name: 'startLng', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 }, example: 101.686 },
@@ -110,7 +119,40 @@ const options = {
             { name: 'endLng', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 }, example: 101.695 },
             { name: 'accessibilityNeeds', in: 'query', required: false, schema: { type: 'string', example: 'wheelchair,elderly' }, description: 'Comma-separated accessibility needs.' },
           ],
-          responses: { 200: { description: 'Route calculated', content: { 'application/json': { example: { success: true, data: { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: [[101.686, 3.139], [101.695, 3.147]] }, properties: { distance_meters: 1420.5, duration_seconds: 1022, accessibility_needs: ['wheelchair'], obstacles_avoided: 2, waypoints_count: 4 } }], metadata: { obstacles_on_route: [] } } } } } }, 400: { description: 'Invalid coordinates or accessibility needs' }, 422: { description: 'No valid route found' }, 500: { description: 'Routing service failure' } },
+          responses: { 200: { description: 'Route calculated', content: { 'application/json': { example: { success: true, data: { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: [[101.686, 3.139], [101.695, 3.147]] }, properties: { distance_meters: 1420.5, duration_seconds: 1022, accessibility_needs: ['wheelchair'], obstacles_avoided: 2, waypoints_count: 2 } }], metadata: { obstacles_on_route: [] } } } } } }, 400: { description: 'Invalid coordinates or accessibility needs' }, 422: { description: 'No valid route found or ORS rejected the request' }, 502: { description: 'OpenRouteService unavailable' } },
+        },
+      },
+      '/api/v1/weather/current': {
+        get: {
+          tags: ['Weather'],
+          summary: 'Get current weather',
+          description: 'Returns current weather conditions for a latitude and longitude using OpenWeatherMap.',
+          parameters: [
+            { name: 'lat', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 }, example: 3.139 },
+            { name: 'lon', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 }, example: 101.686 },
+          ],
+          responses: {
+            200: {
+              description: 'Current weather returned',
+              content: {
+                'application/json': {
+                  example: {
+                    success: true,
+                    data: {
+                      location: { name: 'Kuala Lumpur', country: 'MY', latitude: 3.139, longitude: 101.686 },
+                      weather: { id: 800, main: 'Clear', description: 'langit cerah', icon: '01d' },
+                      temperature: { current: 30.2, feels_like: 34.1, minimum: 29.5, maximum: 31.0, humidity: 70 },
+                      wind: { speed: 2.1, direction: 180 },
+                      visibility_meters: 10000,
+                      observed_at: '2026-09-06T08:00:00.000Z',
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Invalid coordinates' },
+            502: { description: 'OpenWeatherMap unavailable or API key rejected' },
+          },
         },
       },
       '/api/v1/obstacles': {
@@ -140,6 +182,50 @@ const options = {
         put: {
           tags: ['Obstacles'], summary: 'Report an obstacle as cleared', description: 'Records that an obstacle is gone. Bearer JWT authentication is temporarily disabled, but a user identity is still required by the voting data model.', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' }],
           responses: { 200: { description: 'Vote recorded', content: { 'application/json': { example: { success: true, message: 'Obstacle has been cleared and removed from the map.', data: { id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', status: 'archived', upvotes: 5, downvotes: 3 } } } } }, 404: { description: 'Obstacle not found' }, 409: { description: 'Obstacle is archived' }, 503: { description: 'A user identity is required for voting' } },
+        },
+      },
+      '/api/v1/reports/me': {
+        get: {
+          tags: ['Reports'], summary: 'List my obstacle reports', description: 'Returns the authenticated user\'s obstacle reports, status summary, and pagination metadata.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'page', in: 'query', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 },
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 }, example: 20 },
+            { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['active', 'archived', 'under_review'] }, example: 'active' },
+          ],
+          responses: {
+            200: {
+              description: 'Reports returned',
+              content: {
+                'application/json': {
+                  example: {
+                    success: true,
+                    data: {
+                      summary: { active: 2, archived: 1, under_review: 0 },
+                      reports: [{
+                        id: 'd290f1ee-6c54-4b01-90e6-d701748f0851',
+                        latitude: 3.141,
+                        longitude: 101.688,
+                        type: 'broken_pavement',
+                        description: 'Large crack on the sidewalk.',
+                        image_url: null,
+                        status: 'active',
+                        upvotes: 2,
+                        downvotes: 0,
+                        affects: ['wheelchair'],
+                        created_at: '2026-09-05T08:00:00.000Z',
+                        updated_at: '2026-09-05T08:00:00.000Z',
+                      }],
+                      pagination: { page: 1, limit: 20, total: 2, total_pages: 1 },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Invalid status filter' },
+            401: { description: 'Missing or invalid Bearer token' },
+            500: { description: 'Database failure' },
+          },
         },
       },
     },

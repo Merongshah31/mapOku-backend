@@ -1,7 +1,7 @@
 {
   "name": "mapoku-backend",
   "version": "1.0.0",
-  "description": "Accessible routing backend API for Mapoku — powered by Supabase, OSRM, and Vercel.",
+  "description": "Accessible routing backend API for Mapoku — powered by Supabase, OpenRouteService, and Vercel.",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
@@ -9,7 +9,7 @@
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch"
   },
-  "keywords": ["accessibility", "routing", "osrm", "supabase", "maps"],
+  "keywords": ["accessibility", "routing", "openrouteservice", "supabase", "maps"],
   "author": "Mapoku Team",
   "license": "MIT",
   "dependencies": {

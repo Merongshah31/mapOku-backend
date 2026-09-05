@@ -2,7 +2,7 @@
 
 Accessible routing API for Mapoku — helps users with disabilities navigate safely by crowdsourcing real-world obstacles.
 
-**Stack**: Node.js · Express · Supabase (PostgreSQL + PostGIS) · OSRM · Vercel
+**Stack**: Node.js · Express · Supabase (PostgreSQL + PostGIS) · OpenRouteService · Vercel
 
 ---
 
@@ -19,6 +19,7 @@ npm install
 ```bash
 cp .env.example .env
 # Fill in your Supabase credentials (see below)
+# Fill in OPENWEATHER_API_KEY in .env for weather support
 ```
 
 ### 3. Set Up Supabase
@@ -104,6 +105,28 @@ Returns the authenticated user's obstacle reports, grouped status totals, and pa
 
 ---
 
+### 🌦️ Weather Endpoint
+
+Get current weather for a map coordinate. This endpoint is public; the OpenWeatherMap key stays on the backend.
+
+```bash
+curl "http://localhost:3000/api/v1/weather/current?lat=3.139&lon=101.686"
+```
+
+Configure these values in `.env`:
+
+```env
+OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5
+OPENWEATHER_API_KEY=your-openweathermap-api-key-here
+OPENWEATHER_UNITS=metric
+OPENWEATHER_LANG=ms
+OPENWEATHER_TIMEOUT_MS=10000
+```
+
+The endpoint returns current conditions, temperature, humidity, wind, visibility, and observation time. It returns `400` for invalid coordinates and `502` when OpenWeatherMap is unavailable or rejects the key.
+
+---
+
 ### 🛣️ Routing Endpoints
 
 #### Get Accessible Route
@@ -181,7 +204,7 @@ mapoku-backend/
 │   ├── server.js                   # Local dev server
 │   ├── config/
 │   │   ├── supabase.js             # Supabase admin client
-│   │   └── osrm.js                 # OSRM axios client
+│   │   └── ors.js                  # OpenRouteService axios client
 │   ├── middleware/
 │   │   ├── auth.js                 # JWT verification
 │   │   ├── validate.js             # express-validator runner
@@ -195,7 +218,7 @@ mapoku-backend/
 │   │   ├── obstacles.controller.js
 │   │   └── users.controller.js
 │   ├── services/
-│   │   ├── routing.service.js      # OSRM + obstacle-aware routing
+│   │   ├── routing.service.js      # ORS + obstacle-aware routing
 │   │   ├── obstacle.service.js     # PostGIS bounding box + create
 │   │   ├── reputation.service.js   # Voting + auto-archive logic
 │   │   └── storage.service.js      # Supabase Storage uploads

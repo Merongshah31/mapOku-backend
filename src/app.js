@@ -10,6 +10,7 @@ const obstaclesRouter = require('./routes/obstacles.routes');
 const usersRouter    = require('./routes/users.routes');
 const swaggerSpec = require('./config/swagger');
 const reportsRouter  = require('./routes/reports.routes');
+const weatherRouter = require('./routes/weather.routes');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
@@ -65,6 +66,7 @@ app.use('/api/v1/routes',    routesRouter);
 app.use('/api/v1/obstacles', obstaclesRouter);
 app.use('/api/v1/users',     usersRouter);
 app.use('/api/v1/reports',   reportsRouter);
+app.use('/api/v1/weather',   weatherRouter);
 
 // ──────────────────────────────────────────────────
 // Error Handling (must be last)

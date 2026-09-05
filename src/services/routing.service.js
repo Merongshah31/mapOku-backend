@@ -1,9 +1,12 @@
-const { osrmClient, ACCESSIBILITY_PROFILES } = require('../config/osrm');
+const { orsClient, ACCESSIBILITY_PROFILES } = require('../config/ors');
 const supabase = require('../config/supabase');
+
+const OBSTACLE_BUFFER_METERS = Number(process.env.OBSTACLE_BUFFER_METERS || 5);
+const MAX_OBSTACLE_ZONES = Number(process.env.MAX_OBSTACLE_ZONES || 25);
 
 /**
  * RoutingService
- * Calculates accessible pedestrian routes using OSRM,
+ * Calculates accessible pedestrian routes using OpenRouteService,
  * dynamically avoiding user-reported obstacles.
  */
 class RoutingService {
@@ -23,41 +26,43 @@ class RoutingService {
     // 2. Filter obstacles relevant to requested accessibility needs
     const relevantObstacles = accessibilityNeeds.length > 0
       ? obstacles.filter((obs) =>
+          !Array.isArray(obs.affects) ||
           obs.affects.length === 0 || // Affects all needs
           obs.affects.some((need) => accessibilityNeeds.includes(need))
         )
       : obstacles;
 
-    // 3. Build OSRM waypoints — detour around obstacles
-    const waypoints = this._buildWaypoints(start, end, relevantObstacles);
+    // 3. Build ORS avoidance zones from valid obstacle coordinates.
+    const obstacleZones = this._buildAvoidPolygons(relevantObstacles);
+    const profile = ACCESSIBILITY_PROFILES[accessibilityNeeds[0]] || 'foot-walking';
+    const requestBody = {
+      coordinates: [
+        [start.lng, start.lat],
+        [end.lng, end.lat],
+      ],
+      options: {},
+    };
 
-    // 4. Select OSRM profile
-    const profile = ACCESSIBILITY_PROFILES[accessibilityNeeds[0]] || 'foot';
+    if (obstacleZones.coordinates.length > 0) {
+      requestBody.options.avoid_polygons = obstacleZones;
+    }
 
-    // 5. Call OSRM Route API
-    const coordinateString = waypoints
-      .map((w) => `${w.lng},${w.lat}`)
-      .join(';');
-
-    const response = await osrmClient.get(
-      `/route/v1/${profile}/${coordinateString}`,
-      {
-        params: {
-          overview: 'full',
-          geometries: 'geojson',
-          steps: true,
-          annotations: false,
-        },
-      }
-    );
-
-    if (response.data.code !== 'Ok' || !response.data.routes?.length) {
-      const error = new Error('OSRM could not find a valid route for the given coordinates.');
-      error.status = 422;
+    let response;
+    try {
+      response = await orsClient.post(`/v2/directions/${profile}/geojson`, requestBody);
+    } catch (err) {
+      const error = new Error('OpenRouteService is unavailable or rejected the route request.');
+      error.status = err.response?.status === 400 ? 422 : 502;
       throw error;
     }
 
-    const route = response.data.routes[0];
+    const feature = response.data?.features?.[0];
+    const summary = feature?.properties?.summary;
+    if (!feature?.geometry || !summary) {
+      const error = new Error('OpenRouteService could not find a valid route for the given coordinates.');
+      error.status = 422;
+      throw error;
+    }
 
     // 6. Return structured response
     return {
@@ -65,24 +70,58 @@ class RoutingService {
       features: [
         {
           type: 'Feature',
-          geometry: route.geometry,
+          geometry: feature.geometry,
           properties: {
-            distance_meters: route.distance,
-            duration_seconds: route.duration,
+            distance_meters: summary.distance,
+            duration_seconds: summary.duration,
             accessibility_needs: accessibilityNeeds,
-            obstacles_avoided: relevantObstacles.length,
-            waypoints_count: waypoints.length,
+            obstacles_avoided: obstacleZones.coordinates.length,
+            waypoints_count: 2,
           },
         },
       ],
       metadata: {
-        obstacles_on_route: relevantObstacles.map((o) => ({
+        obstacles_on_route: relevantObstacles.slice(0, MAX_OBSTACLE_ZONES).map((o) => ({
           id: o.id,
           type: o.type,
           latitude: o.latitude,
           longitude: o.longitude,
         })),
       },
+    };
+  }
+
+  /**
+   * Builds small closed polygon zones around obstacle points for ORS.
+   * Coordinates are GeoJSON-standard [longitude, latitude].
+   */
+  _buildAvoidPolygons(obstacles) {
+    const polygons = [];
+
+    for (const obstacle of obstacles.slice(0, MAX_OBSTACLE_ZONES)) {
+      const latitude = Number(obstacle.latitude);
+      const longitude = Number(obstacle.longitude);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) continue;
+
+      const halfSize = OBSTACLE_BUFFER_METERS / 2;
+      const latitudeDelta = halfSize / 111320;
+      const longitudeDelta = halfSize / (111320 * Math.max(Math.cos(latitude * Math.PI / 180), 0.01));
+      const ring = [
+        [longitude - longitudeDelta, latitude - latitudeDelta],
+        [longitude + longitudeDelta, latitude - latitudeDelta],
+        [longitude + longitudeDelta, latitude + latitudeDelta],
+        [longitude - longitudeDelta, latitude + latitudeDelta],
+        [longitude - longitudeDelta, latitude - latitudeDelta],
+      ];
+
+      polygons.push([ring]);
+    }
+
+    return {
+      type: 'MultiPolygon',
+      coordinates: polygons,
     };
   }
 
@@ -110,73 +149,6 @@ class RoutingService {
     }
   }
 
-  /**
-   * Builds OSRM waypoints by inserting small detour points around obstacles.
-   * For each obstacle, a perpendicular offset point is added to steer the route away.
-   *
-   * @param {Object} start
-   * @param {Object} end
-   * @param {Array}  obstacles
-   * @returns {Array} Array of { lat, lng } waypoints
-   */
-  _buildWaypoints(start, end, obstacles) {
-    const waypoints = [start];
-
-    // Sort obstacles by proximity to the start point
-    const sorted = [...obstacles].sort((a, b) => {
-      const distA = this._haversineDistance(start, a);
-      const distB = this._haversineDistance(start, b);
-      return distA - distB;
-    });
-
-    for (const obstacle of sorted) {
-      // Create a 30-metre perpendicular detour point
-      const detour = this._perpendicularOffset(
-        start,
-        end,
-        { lat: obstacle.latitude, lng: obstacle.longitude },
-        0.0003 // ~30 metres in degrees
-      );
-      waypoints.push(detour);
-    }
-
-    waypoints.push(end);
-    return waypoints;
-  }
-
-  /**
-   * Calculates a point offset perpendicularly from the route line near an obstacle.
-   */
-  _perpendicularOffset(start, end, obstacle, offsetDeg) {
-    const dx = end.lng - start.lng;
-    const dy = end.lat - start.lat;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-
-    // Perpendicular unit vector
-    const perpX = -dy / len;
-    const perpY = dx / len;
-
-    return {
-      lat: obstacle.lat + perpY * offsetDeg,
-      lng: obstacle.lng + perpX * offsetDeg,
-    };
-  }
-
-  /**
-   * Haversine distance in metres between two lat/lng points.
-   */
-  _haversineDistance(a, b) {
-    const R = 6371000;
-    const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-    const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-    const x =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((a.lat * Math.PI) / 180) *
-        Math.cos((b.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-  }
 }
 
 module.exports = new RoutingService();

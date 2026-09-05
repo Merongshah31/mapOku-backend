@@ -45,13 +45,13 @@ Dokumen ini memperincikan seni bina penuh, spesifikasi endpoint API, dan aliran 
 │           ▼                                                    ▼                │
 │    [PostGIS BBox Query]                             1. Kira Bounding Box / Koridor│
 │           │                                         2. Tarik Halangan Aktif DB   │
-│           │                                         3. Bina Waypoint Mengelak   │
+│           │                                         3. Bina zon elak GeoJSON    │
 └───────────┼────────────────────────────────────────────────────┬────────────────┘
             │                                                    │
             ▼                                                    ▼
 ┌─────────────────────────┐                            ┌──────────────────────────┐
 │   SUPABASE (PostgreSQL) │                            │ ROUTING ENGINE           │
-│   + PostGIS Extensions  │                            │ (OSRM / GraphHopper)     │
+│   + PostGIS Extensions  │                            │ OpenRouteService API     │
 │                         │                            │                          │
 │  Table: obstacles       │                            │  OSM Street Network Data │
 │  RPC: get_obstacles_    │                            │  Avoidance Calculation   │
@@ -94,22 +94,22 @@ Dokumen ini memperincikan seni bina penuh, spesifikasi endpoint API, dan aliran 
 ---
 
 ### Fasa 3: Suntikan Arahan Laluan (Backend ke Engine)
-5. **Bina Payload / Waypoints**:
+5. **Bina Payload / Zon Elak**:
    - Backend mengenal pasti koordinat halangan yang dikesan di atas laluan (cth: ramp rosak di `[101.6890, 3.1420]`).
-   - Backend membina titik lencongan (*perpendicular offset detour point*) sejauh ~30 meter ke sisi halangan supaya laluan melencong keluar daripada zon bahaya.
+  - Backend membina polygon kecil kira-kira 5x5 meter di sekeliling koordinat halangan.
 6. **Suntik Parameter Enjin**:
-   - Profil disetkan kepada pejalan kaki/kerusi roda (`foot` atau profil khas).
-   - Waypoints disusun: `Point A` ➔ `Detour 1` ➔ `Detour 2` ➔ `Point B`.
+  - Profil ORS disetkan kepada `foot-walking` untuk MVP.
+  - Polygon dihantar melalui `options.avoid_polygons`.
 7. **Hantar ke Engine**:
-   - Backend memanggil enjin pemetaan OSRM / GraphHopper melalui HTTP request.
+  - Backend memanggil OpenRouteService melalui HTTP POST.
 
 ---
 
 ### Fasa 4: Pengiraan Pemetaan (Routing Engine)
 8. **Analisis Graf OSM**:
-   - Enjin memproses laluan berpandukan peta asas OpenStreetMap (`.osm.pbf`).
+  - OpenRouteService memproses laluan berpandukan graf OpenStreetMap yang dihoskan oleh ORS.
 9. **Kira & Elak**:
-   - Enjin mencari graf jalan optimum untuk pejalan kaki/kerusi roda, sambil memaksa laluan melalui waypoints lencongan yang telah disuntik oleh Node.js, sekali gus mengelakkan halangan secara tepat.
+  - Enjin mencari graf jalan optimum untuk pejalan kaki, sambil mengelakkan polygon halangan yang disuntik oleh Node.js.
 10. **Output GeoJSON**:
     - Enjin memulangkan senarai koordinat laluan (`LineString`) bersama maklumat jarak (`distance_meters`) dan anggaran masa (`duration_seconds`).
 
@@ -276,7 +276,7 @@ Sistem pengesahan komuniti (seperti Waze):
 
 > [!WARNING]
 > **PUNCA UTAMA GARISAN TIDAK MUNCUL DI PETA:**
-> - Enjin OSRM & GeoJSON mengeluarkan format: `[longitude, latitude]` (X, Y mengikut standard kartografi matematik).
+> - OpenRouteService & GeoJSON mengeluarkan format: `[longitude, latitude]` (X, Y mengikut standard kartografi matematik).
 > - Komponen Peta Leaflet (`L.latLng` / `<Polyline>`) memerlukan format: `[latitude, longitude]` (Y, X mengikut standard GPS).
 
 Jika koordinat tidak diterbalikkan (*flipped*), Leaflet akan cuba melukis garisan di kawasan Lautan Hindi berdekatan Antartika (`lat: 101.68, lng: 3.14`), menyebabkan polyline tidak kelihatan!

@@ -56,6 +56,8 @@ Semakan Bearer JWT sedang dinyahaktifkan sementara untuk pelaporan halangan. End
 | Kategori | Method | Endpoint Path | Auth? | Fungsi Ringkas |
 |---|---|---|:---:|---|
 | **Health** | `GET` | `/health` | ❌ | Periksa status hidup server |
+| **Weather** | `GET` | `/api/v1/weather/current` | ❌ | Dapatkan cuaca semasa berdasarkan koordinat |
+| **Reports** | `GET` | `/api/v1/reports/me` | ✅ | Senarai laporan halangan milik pengguna yang sedang log masuk |
 | **Dokumentasi** | `GET` | `/api-docs` | ❌ | Swagger UI interaktif OpenAPI 3.0 |
 | **Auth/User** | `POST` | `/api/v1/users/register` | ❌ | Daftar akaun pengguna baru |
 | **Auth/User** | `POST` | `/api/v1/users/login` | ❌ | Log masuk & terima JWT token |
@@ -184,7 +186,65 @@ Mendapatkan maklumat profil pengguna semasa berpandukan token.
 
 ---
 
-## 3. 🧭 Navigasi & Routing (Aksesibiliti OKU)
+## 3. 🌦️ Cuaca Semasa (OpenWeatherMap)
+
+### `GET /api/v1/weather/current`
+Mendapatkan keadaan cuaca semasa berdasarkan koordinat lokasi. Endpoint ini tidak memerlukan token pengguna; backend menggunakan API key OpenWeatherMap secara server-side.
+
+#### Parameter Query:
+| Parameter | Jenis | Wajib? | Contoh | Keterangan |
+|---|---|:---:|---:|---|
+| `lat` | Float | **Ya** | `3.1390` | Latitud antara `-90` hingga `90` |
+| `lon` | Float | **Ya** | `101.6863` | Longitud antara `-180` hingga `180` |
+
+- **Contoh Request:**
+  ```bash
+  curl "http://localhost:3000/api/v1/weather/current?lat=3.1390&lon=101.6863"
+  ```
+
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "location": {
+        "name": "Kuala Lumpur",
+        "country": "MY",
+        "latitude": 3.139,
+        "longitude": 101.686
+      },
+      "weather": {
+        "id": 800,
+        "main": "Clear",
+        "description": "langit cerah",
+        "icon": "01d"
+      },
+      "temperature": {
+        "current": 30.2,
+        "feels_like": 34.1,
+        "minimum": 29.5,
+        "maximum": 31,
+        "humidity": 70
+      },
+      "wind": {
+        "speed": 2.1,
+        "direction": 180
+      },
+      "visibility_meters": 10000,
+      "observed_at": "2026-09-06T08:00:00.000Z"
+    }
+  }
+  ```
+
+- **Response Errors:**
+  - `400 Bad Request` jika koordinat tidak sah.
+  - `502 Bad Gateway` jika OpenWeatherMap tidak tersedia atau API key ditolak.
+
+API key ditetapkan melalui `OPENWEATHER_API_KEY` dalam `.env` dan tidak dihantar kepada frontend.
+
+---
+
+## 4. 🧭 Navigasi & Routing (Aksesibiliti OKU)
 
 ### `GET /api/v1/routes/accessible`
 Mengira laluan pejalan kaki terbaik dengan melencong mengelakkan halangan jalan raya mengikut keperluan aksesibiliti OKU.
@@ -387,7 +447,70 @@ Melaporkan bahawa halangan sudah tiada / telah dibaiki.
 
 ---
 
-## 6. ⚠️ Format Kod Ralat (Error Responses)
+## 6. Laporan Halangan Pengguna (Reports)
+
+### `GET /api/v1/reports/me`
+Mendapatkan laporan halangan yang dibuat oleh pengguna semasa, bersama ringkasan status dan maklumat pagination.
+
+- **Authentication:** Wajib menggunakan `Authorization: Bearer <access_token>`.
+- **Parameter Query:**
+
+| Parameter | Jenis | Wajib? | Default | Keterangan |
+|---|---|:---:|---:|---|
+| `page` | Integer | Tidak | `1` | Nombor halaman, minimum `1` |
+| `limit` | Integer | Tidak | `20` | Bilangan laporan setiap halaman, maksimum `100` |
+| `status` | String | Tidak | Semua status | Pilihan: `active`, `archived`, `under_review` |
+
+- **Contoh Request:**
+  ```bash
+  curl "http://localhost:3000/api/v1/reports/me?page=1&limit=20&status=active" \
+    -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  ```
+
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "summary": {
+        "active": 2,
+        "archived": 1,
+        "under_review": 0
+      },
+      "reports": [
+        {
+          "id": "e3e839e2-8924-42f2-89bb-132d7211516e",
+          "latitude": 3.149,
+          "longitude": 101.7135,
+          "type": "construction",
+          "description": "Laluan pejalan kaki sempit kerana pembinaan.",
+          "image_url": null,
+          "status": "active",
+          "upvotes": 0,
+          "downvotes": 0,
+          "affects": ["wheelchair", "elderly"],
+          "created_at": "2026-09-05T08:56:37.000Z",
+          "updated_at": "2026-09-05T08:56:37.000Z"
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "limit": 20,
+        "total": 2,
+        "total_pages": 1
+      }
+    }
+  }
+  ```
+
+- **Response Errors:**
+  - `400 Bad Request` jika `status` bukan `active`, `archived`, atau `under_review`.
+  - `401 Unauthorized` jika token tiada, tidak sah, atau telah tamat tempoh.
+  - `500 Server Error` jika query pangkalan data gagal.
+
+---
+
+## 7. ⚠️ Format Kod Ralat (Error Responses)
 
 Semua ralat dipulangkan dalam format seragam:
 
@@ -407,5 +530,5 @@ Semua ralat dipulangkan dalam format seragam:
 | `400 Bad Request` | Parameter tidak sah atau input form gagal pengesahan validator. |
 | `401 Unauthorized` | Header `Authorization` tiada atau token JWT tidak sah/tamat tempoh. |
 | `404 Not Found` | ID halangan atau endpoint yang diminta tidak wujud. |
-| `422 Unprocessable` | OSRM tidak dapat mencari laluan fizikal antara dua koordinat yang diberikan. |
+| `422 Unprocessable` | OpenRouteService tidak dapat mencari laluan atau menolak koordinat/zon halangan yang diberikan. |
 | `500 Server Error` | Masalah dalaman pangkalan data atau servis luar. |
