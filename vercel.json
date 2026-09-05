@@ -6,7 +6,10 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "node_modules/swagger-ui-dist/**/*"
+          "node_modules/swagger-ui-dist/swagger-ui.css",
+          "node_modules/swagger-ui-dist/swagger-ui-bundle.js",
+          "node_modules/swagger-ui-dist/swagger-ui-standalone-preset.js",
+          "node_modules/swagger-ui-dist/favicon-32x32.png"
         ]
       }
     }
