@@ -1,15 +1,38 @@
-/**
- * Supabase Auth is intentionally switched off for the temporary anonymous
- * release. Retaining these routes gives clients a clear response instead of
- * accidentally creating accounts or sessions.
- */
-const authDisabled = (res) => res.status(503).json({
-  error: 'Authentication Disabled',
-  message: 'Login and registration are temporarily disabled. Use public obstacle endpoints without a token.',
+const supabase = require('../config/supabase');
+
+const register = (req, res) => res.status(501).json({
+  error: 'Not Implemented',
+  message: 'Registration is not available yet.',
 });
 
-const register = (req, res) => authDisabled(res);
-const login = (req, res) => authDisabled(res);
-const getMe = (req, res) => authDisabled(res);
+const login = async (req, res) => {
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({
+      error: 'Invalid Request',
+      message: 'Email and password are required.',
+    });
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error || !data?.user) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: error?.message || 'Invalid email or password.',
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: { user: data.user },
+  });
+};
+
+const getMe = (req, res) => res.status(401).json({
+  error: 'Unauthorized',
+  message: 'A user session is required.',
+});
 
 module.exports = { register, login, getMe };

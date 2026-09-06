@@ -100,9 +100,9 @@ const options = {
       },
       '/api/v1/users/login': {
         post: {
-          tags: ['Users'], summary: 'Log in a user', description: 'Authenticates a user and returns Supabase JWT session tokens.',
+          tags: ['Users'], summary: 'Verify user credentials', description: 'Authenticates a user without returning a session token.',
           requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/UserCredentials' }, example: { email: 'user@example.com', password: 'securepassword123' } } } },
-          responses: { 200: { description: 'Login successful', content: { 'application/json': { example: { success: true, data: { access_token: 'eyJhbGciOiJIUzI1NiIsIn...', refresh_token: 'refresh-token', expires_in: 3600, user: { id: 'a9c1e7a4-850f-4882-9659-19ffce3d7dc2', email: 'user@example.com' } } } } } }, 401: { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } } },
+          responses: { 200: { description: 'Credentials verified', content: { 'application/json': { example: { success: true, data: { user: { id: 'a9c1e7a4-850f-4882-9659-19ffce3d7dc2', email: 'user@example.com' } } } } } }, 400: { description: 'Missing credentials' }, 401: { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } } },
         },
       },
       '/api/v1/users/me': {

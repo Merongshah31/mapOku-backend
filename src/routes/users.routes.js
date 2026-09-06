@@ -13,10 +13,10 @@ router.post('/register', register);
 
 /**
  * POST /api/v1/users/login
- * Authenticate and receive a JWT session.
+ * Verify credentials without returning a session token.
  *
  * Body: { email, password }
- * Returns: { access_token, refresh_token, expires_in, user }
+ * Returns: { success, data: { user } }
  */
 router.post('/login', login);
 
