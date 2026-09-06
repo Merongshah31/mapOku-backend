@@ -20,10 +20,10 @@ class ReputationService {
    * @param {string} voteType   - 'upvote' | 'downvote'
    * @returns {Object} Updated obstacle record with new vote counts
    */
-  async updateObstacleStatus(obstacleId, userId, voteType) {
-    if (!userId) {
-      const err = new Error('A user identity is required to vote on an obstacle.');
-      err.status = 503;
+  async updateObstacleStatus(obstacleId, anonymousId, voteType) {
+    if (!anonymousId) {
+      const err = new Error('An anonymous visitor ID is required to vote on an obstacle.');
+      err.status = 400;
       throw err;
     }
 
@@ -50,8 +50,8 @@ class ReputationService {
     const { error: voteError } = await supabase
       .from('votes')
       .upsert(
-        { obstacle_id: obstacleId, user_id: userId, vote_type: voteType },
-        { onConflict: 'obstacle_id,user_id' }
+        { obstacle_id: obstacleId, anonymous_id: anonymousId, vote_type: voteType },
+        { onConflict: 'obstacle_id,anonymous_id' }
       );
 
     if (voteError) {

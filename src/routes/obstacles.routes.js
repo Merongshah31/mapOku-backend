@@ -12,6 +12,7 @@ const {
   voteValidators,
 } = require('../validators/obstacle.validator');
 const { validate } = require('../middleware/validate');
+const { requireAnonymousIdentity } = require('../middleware/anonymousIdentity');
 
 const router = express.Router();
 
@@ -56,6 +57,7 @@ router.post(
  */
 router.put(
   '/:id/upvote',
+  requireAnonymousIdentity,
   voteValidators,
   validate,
   upvoteObstacle
@@ -68,6 +70,7 @@ router.put(
  */
 router.put(
   '/:id/downvote',
+  requireAnonymousIdentity,
   voteValidators,
   validate,
   downvoteObstacle

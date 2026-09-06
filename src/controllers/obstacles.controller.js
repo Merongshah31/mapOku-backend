@@ -60,7 +60,8 @@ const createObstacle = async (req, res, next) => {
       affects: affects
         ? (Array.isArray(affects) ? affects : JSON.parse(affects))
         : [],
-      userId: req.user?.id || null,
+      // Authentication is disabled during the anonymous-access period.
+      userId: null,
     };
 
     const obstacle = await obstacleService.createAndNotify(
@@ -86,7 +87,7 @@ const upvoteObstacle = async (req, res, next) => {
   try {
     const updated = await reputationService.updateObstacleStatus(
       req.params.id,
-      req.user?.id,
+      req.anonymousId,
       'upvote'
     );
 
@@ -109,7 +110,7 @@ const downvoteObstacle = async (req, res, next) => {
   try {
     const updated = await reputationService.updateObstacleStatus(
       req.params.id,
-      req.user?.id,
+      req.anonymousId,
       'downvote'
     );
 
