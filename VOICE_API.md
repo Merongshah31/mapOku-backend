@@ -29,4 +29,4 @@ Example response:
 
 Recognised command types: `NAVIGATE_TO_DESTINATION`, `START_NAVIGATION`, `STOP_NAVIGATION`, `PAUSE_NAVIGATION`, `RESUME_NAVIGATION`, `REPEAT_INSTRUCTION`, `NEXT_INSTRUCTION`, `PREVIOUS_INSTRUCTION`, `MUTE_GUIDANCE`, `UNMUTE_GUIDANCE`, `REPORT_OBSTACLE`, and `UNKNOWN`.
 
-Before calling the endpoint, enable Cloud Speech-to-Text in the Google Cloud project and set `GOOGLE_APPLICATION_CREDENTIALS` to a service-account JSON file with Speech-to-Text access. On hosted platforms, configure the equivalent service-account credentials as deployment secrets rather than committing the JSON file.
+Before calling the endpoint, enable Cloud Speech-to-Text in the Google Cloud project. Locally, set `GOOGLE_APPLICATION_CREDENTIALS` to a service-account JSON file with Speech-to-Text access. On Vercel, set `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` to the base64-encoded contents of that JSON key; never commit or deploy the JSON file.

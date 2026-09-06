@@ -6,8 +6,32 @@ const SUPPORTED_ENCODINGS = new Set(['LINEAR16', 'FLAC', 'MP3', 'OGG_OPUS', 'WEB
 let client;
 
 const httpError = (message, status) => Object.assign(new Error(message), { status });
+
+const getVercelCredentials = () => {
+  const encoded = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64;
+  if (!encoded) return undefined;
+
+  try {
+    const credentials = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error('missing client_email or private_key');
+    }
+    return credentials;
+  } catch (error) {
+    throw httpError(
+      'GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 is not a valid base64-encoded Google service-account JSON key.',
+      503
+    );
+  }
+};
+
 const getClient = () => {
-  if (!client) client = new speech.SpeechClient();
+  if (!client) {
+    const credentials = getVercelCredentials();
+    client = credentials
+      ? new speech.SpeechClient({ credentials, projectId: credentials.project_id })
+      : new speech.SpeechClient();
+  }
   return client;
 };
 const normalise = (text) => text.toLocaleLowerCase('ms-MY').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
@@ -47,6 +71,12 @@ const transcribeNavigationAudio = async (file, options = {}) => {
     return { transcript, confidence: response.results?.[0]?.alternatives?.[0]?.confidence ?? null, navigationCommand: parseNavigationCommand(transcript) };
   } catch (error) {
     if (error.status) throw error;
+    if (/Could not load the default credentials|GOOGLE_APPLICATION_CREDENTIALS|application default credentials/i.test(error.message || '')) {
+      throw httpError(
+        'Google Speech-to-Text credentials are not configured. Set GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 on Vercel, or GOOGLE_APPLICATION_CREDENTIALS locally.',
+        503
+      );
+    }
     if ([3, 7, 16].includes(error.code)) throw httpError('Google Speech-to-Text rejected the audio or credentials.', 502);
     if ([5, 9].includes(error.code)) throw httpError('Google Speech-to-Text is not configured for this project.', 503);
     throw error;
