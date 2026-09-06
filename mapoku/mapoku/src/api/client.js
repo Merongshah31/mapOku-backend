@@ -1,26 +1,10 @@
-const TOKEN_KEY = 'mapoku_access_token';
-
+/**
+ * Fetch JSON from the MapOKU backend.
+ */
 export function getApiBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 }
 
-export function getAccessToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setAccessToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
-}
-
-export function clearAccessToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-/**
- * Fetch JSON from the MapOKU backend.
- * Attaches Bearer token when present.
- */
 export async function apiFetch(path, options = {}) {
   const base = getApiBaseUrl();
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
@@ -29,14 +13,8 @@ export async function apiFetch(path, options = {}) {
     ...options.headers,
   };
 
-  // Let the browser set multipart boundary for FormData
   if (options.body && !(options.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
-  }
-
-  const token = getAccessToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
   }
 
   const res = await fetch(url, { ...options, headers });

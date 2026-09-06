@@ -1,65 +1,16 @@
 {
   "info": {
     "name": "MapOKU Rewards",
-    "description": "Rewards-only collection for MapOKU backend.\n\n1. Run **1. Login** first\n2. Token is saved automatically to collection variable `access_token`\n3. Run **2. Get Rewards**\n4. Copy an item `id` into variable `reward_item_id`, then run **3. Redeem**",
+    "description": "Rewards-only collection (no login).\n\n1. Run **Get Rewards**\n2. First item id is saved to `reward_item_id`\n3. Run **Redeem Reward**\n\nServer uses DEMO_USER_ID from .env for the points balance.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3001" },
-    { "key": "email", "value": "rewards.tester@gmail.com" },
-    { "key": "password", "value": "password123" },
-    { "key": "username", "value": "rewards_tester" },
-    { "key": "access_token", "value": "" },
     { "key": "reward_item_id", "value": "" }
   ],
   "item": [
     {
-      "name": "0. Register (once)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"username\": \"{{username}}\"\n}"
-        },
-        "url": "{{baseUrl}}/api/v1/users/register",
-        "description": "Create account once. Then use Login."
-      }
-    },
-    {
-      "name": "1. Login (get token)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const json = pm.response.json();",
-              "if (json && json.data && json.data.access_token) {",
-              "  pm.collectionVariables.set('access_token', json.data.access_token);",
-              "  console.log('access_token saved');",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
-        },
-        "url": "{{baseUrl}}/api/v1/users/login",
-        "description": "Saves access_token automatically for the other requests."
-      }
-    },
-    {
-      "name": "2. Get Rewards (main)",
+      "name": "1. Get Rewards",
       "event": [
         {
           "listen": "test",
@@ -76,31 +27,19 @@
         }
       ],
       "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            { "key": "token", "value": "{{access_token}}", "type": "string" }
-          ]
-        },
         "method": "GET",
         "header": [],
         "url": "{{baseUrl}}/api/v1/rewards",
-        "description": "FRONTEND: page Rewards — points_balance, reports_count, confirmations_count, items.\nAuto-saves first item id to reward_item_id."
+        "description": "Returns points_balance and catalog items. No Authorization header."
       }
     },
     {
-      "name": "3. Redeem Reward",
+      "name": "2. Redeem Reward",
       "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            { "key": "token", "value": "{{access_token}}", "type": "string" }
-          ]
-        },
         "method": "POST",
         "header": [],
         "url": "{{baseUrl}}/api/v1/rewards/{{reward_item_id}}/redeem",
-        "description": "FRONTEND: Redeem button. Needs reward_item_id (auto from Get Rewards)."
+        "description": "Redeems reward_item_id against DEMO_USER_ID balance."
       }
     },
     {
@@ -109,7 +48,7 @@
         "method": "GET",
         "header": [],
         "url": "{{baseUrl}}/health",
-        "description": "No auth. Confirm server is up."
+        "description": "Confirm server is up."
       }
     }
   ]
