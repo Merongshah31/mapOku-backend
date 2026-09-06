@@ -1,0 +1,11 @@
+{
+  "watch": ["src", "api", "package.json"],
+  "ext": "js,json",
+  "ignore": [
+    "mapoku/**",
+    "postman/**",
+    "node_modules/**",
+    "**/*.zip",
+    "**/__MACOSX/**"
+  ]
+}

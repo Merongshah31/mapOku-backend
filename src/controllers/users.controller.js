@@ -97,7 +97,7 @@ const getMe = async (req, res, next) => {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, reputation_score, created_at')
+      .select('id, username, avatar_url, created_at')
       .eq('id', req.user.id)
       .single();
 
